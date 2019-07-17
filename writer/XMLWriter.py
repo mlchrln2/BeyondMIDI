@@ -41,7 +41,7 @@ def xml_writer(in_path, out_path='', out_file='out.h5'):
         duration = [0]
         still_rest = True
         # append the start token and start time to the labels
-        data = [['start', 'rest', 0, 'none']]
+        data = [('start', 'rest', 0, 'none')]
         # retrieve the metadata from the xml objects
         song = converter.parse(file)
         metadata = song.recurse()
@@ -54,11 +54,11 @@ def xml_writer(in_path, out_path='', out_file='out.h5'):
                 if msg.tie:
                     if msg.tie.type == 'start':
                         duration.append(time)
-                        data.append([str(measure), note, octave, dynamic])
+                        data.append((str(measure), note, octave, dynamic))
                 # store the note if it is not tied
                 else:
                     duration.append(time)
-                    data.append([str(measure), note, octave, dynamic])
+                    data.append((str(measure), note, octave, dynamic))
                 # reset the rest flag in case another rest shows up
                 still_rest = False
             # current rest
@@ -71,7 +71,7 @@ def xml_writer(in_path, out_path='', out_file='out.h5'):
                     note = msg.name
                     time = Fraction(metadata.currentHierarchyOffset())
                     duration.append(time)
-                    data.append([str(measure), note, 0, 'none'])
+                    data.append((str(measure), note, 0, 'none'))
             # current measure
             elif msg.classes[0] == 'Measure':
                 measure += 1
@@ -91,19 +91,22 @@ def xml_writer(in_path, out_path='', out_file='out.h5'):
             data.pop()
         else:
             duration.append(time + time_num + time_num - time % time_num)
-        # append end token
-        data.append(['end', 'rest', 0, 'none'])
-        # cast to numpy array and concatenate labels with time
-        data = np.asarray(data)
+        # append end token and correct the durations
+        data.append(('end', 'rest', 0, 'none'))
         duration = np.array(duration) * Fraction(time_denom / 4)
+        # cast to numpy array and concatenate labels with time
+        dtypes = np.dtype([('measure', '<S5'), ('note', '<S5'), ('octave', 'i8'), ('dynamic', '<S5')])
+        data = np.asarray(data, dtype=dtypes)
         start_beat = (duration[0:-1] % time_num) + 1
+        start_beat = start_beat.astype([('start_beat', '<f8')])
         duration = duration[1:] - duration[0:-1]
+        duration = duration.astype([('duration', '<f8')])
         # gather data and save the data
-        data = np.hstack((data[:, 0].reshape(-1, 1), start_beat.reshape(-1, 1),
-                          duration.reshape(-1, 1), data[:, 1:]))
-        data = np.array(data, dtype='<S10')
+        data = np.hstack((data['measure'].reshape(-1, 1), start_beat['start_beat'].reshape(-1, 1),
+                          duration['duration'].reshape(-1, 1), data['note'].reshape(-1, 1),
+                          data['octave'].reshape(-1, 1), data['dynamic'].reshape(-1, 1)))
         file_name = file.split('/')[-1].split('.xml')[0]
-        label_frame.create_dataset(file_name, data=data, dtype='<S10')
+        label_frame.create_dataset(file_name, data=data)
         print('file {} of {} written'.format(
             num_file + 1, total_files), end='\r')
     label_frame.close()

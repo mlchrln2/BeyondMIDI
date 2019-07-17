@@ -9,7 +9,7 @@ import h5py
 from music21 import *
 
 
-def XMLWriter(in_path, out_path='', out_file='out.h5'):
+def xml_writer(in_path, out_path='', out_file='out.h5'):
     '''Data writer that converts XML file metadata to data labels
 
     Args: in_path
@@ -120,6 +120,6 @@ def main():
     parser.add_argument('out_file', metavar='output file',
                         help='csv file name')
     args = parser.parse_args()
-    XMLWriter(args.in_path, args.out_path, args.out_file)
+    xml_writer(args.in_path, args.out_path, args.out_file)
 
 main()

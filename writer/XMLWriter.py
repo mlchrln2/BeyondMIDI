@@ -13,9 +13,9 @@ def xml_writer(in_path, out_path='', out_file='out.h5'):
     '''Data writer that converts XML file metadata to data labels
 
     Args: in_path
-            in_path (string): location of the XML file.
+            in_path (string): location of the directory filled with XML files.
             out_path (string): location of the output file's directory.
-            out_file (string): location of the output file
+            out_file (string): the output file's name
     '''
     # collect the files in the input directory
     xml_dirs = [in_path + directory for directory in os.listdir(in_path)]

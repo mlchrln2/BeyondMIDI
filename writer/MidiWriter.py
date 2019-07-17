@@ -10,6 +10,7 @@ import pandas as pd
 import numpy as np
 from mido import MidiFile
 from mido import tempo2bpm
+from mido import tick2second
 
 
 def midi2name(midi, offset=0):
@@ -53,7 +54,7 @@ def vel2dyn(velocity):
     return word
 
 
-def midi_writer(etude_number, in_path,out_path='.', out_file='out.h5'):
+def midi_writer(in_path, out_path='out.h5'):
     '''Method for storing midi file information into a .h5 file. This method will parse through
     a midi file and extract important metadata for data labeling. This method assumes that the data
     is stored in the midi files is stored in the standard .mid format of type 0 (single track),
@@ -65,73 +66,42 @@ def midi_writer(etude_number, in_path,out_path='.', out_file='out.h5'):
       out_file (string): The name of the output .h5 file to be saved. Default is 'out.h5'.
     '''
     rose_midi = MidiFile(in_path)
-    etude = {1: {'start': 1, 'end': 43, 'down_beat': 1},
-             2: {'start': 43, 'end': 50, 'down_beat': 1}}[etude_number]
-    played = {}
-    sign = 0
-    ticks = 0
-    upper_signature = 0
-    lower_signature = 0
-    measure = 1
-    rhythm = etude['down_beat'] - 1
-    tempo = 0
-    itr = 0
-    rhythm_list = []
-    beats_list = []
-    note_list = []
-    dynamics_list = []
-    tempo_list = []
-    measure_list = []
+    time = 0
+    key = ''
+    tempo = {}
+    time_numer, time_denom = 0, 0
     for msg in rose_midi.tracks[0]:
+        time += msg.time
+        if msg.type == 'key_signature':
+            key = msg.key
         if msg.type == 'time_signature':
-            upper_signature = msg.numerator
-            lower_signature = msg.denominator
+            time_numer = msg.numerator
+            time_denom = msg.denominator
         if msg.type == 'set_tempo':
-            '''
-            if etude_number != 0:
-                data_frame = pd.DataFrame({'measure': measure_list, 'rhythm': rhythm_list,
-                                           'beat value': beats_list, 'note': note_list,
-                                           'dynamics': dynamics_list, 'tempo': tempo_list})
-                out_file_arr = out_file.split('.')
-                out = '{}{}_{}.{}'.format(out_path, out_file_arr[0], etude_number, out_file_arr[1])
-                data_frame.to_csv(out, index=False)
-                measure = 1
-            etude_number += 1
-            tempo = int(tempo2bpm(msg.tempo))
-            '''
+            tempo[time] = msg.tempo
+    time = 0
+    note = []
+    on, off = [], []
+    for msg in rose_midi.tracks[1]:
+        time += msg.time
         if msg.type == 'note_on':
-            note = msg.note
-            velocity = msg.velocity
-            if velocity != 0:
-                played_vals = np.array(list(played.values()))
-                sign = np.any(played_vals != 0)
-                played[note] = velocity
-                ticks = msg.time - 1
-            else:
-                sign = 1
-                dynamics = vel2dyn(played[note])
-                played[note] = velocity
-                ticks = msg.time + 1
-            if ticks > 0:
-                beats = Fraction(ticks * lower_signature,
-                                 rose_midi.ticks_per_beat * 4)
-                note *= sign
-                measure_list.append(measure)
-                rhythm_list.append(float(rhythm))
-                beats_list.append(float(beats))
-                note_list.append(midi2name(note, 2))
-                if measure == etude['start'] and itr != etude_number:
-                    rhythm = etude['down_beat'] - 1
-                    itr += 1
-                if measure >= etude['start'] and measure < etude['end']:
-                    print('measure: {}, start: {}, end: {}, duration: {} note name: {}'.format(measure - etude['start'] + 1, rhythm % upper_signature + 1, (rhythm + beats) % upper_signature + 1, beats, midi2name(note, 2)))
-                if note != 0:
-                    dynamics_list.append(dynamics)
-                else:
-                    dynamics_list.append('NA')
-                tempo_list.append(tempo)
-                rhythm += beats
-                measure = rhythm // upper_signature + 1
+            note_on = msg.note
+            velocity_on = msg.velocity
+            time_on = msg.time
+            note.append(midi2name(note_on, 2))
+            on.append(time_on)
+        if msg.type == 'note_off':
+            note_off = msg.note
+            time_off = msg.time
+            velocity_off = msg.velocity
+            off.append(time_off)
+        print(msg)
+    for a, b in zip(on, off):
+        print(a / rose_midi.ticks_per_beat, b / rose_midi.ticks_per_beat)
+    print(time / rose_midi.ticks_per_beat)
+    #data_frame = pd.DataFrame({'note': note})
+    #data_frame.to_csv(out_path, index=False)
+
 
 def main():
     '''Main method for midi writing'''
@@ -141,14 +111,8 @@ def main():
                         help='path to midi file')
     parser.add_argument('out_path', metavar='output directory',
                         help='output path for the midi writer')
-    parser.add_argument('out_file', metavar='output file',
-                        help='output fle for the midi writer')
-    parser.add_argument('etude_number', metavar='etude number', type=int,
-                        help='the etude number of the rose etudes')
     args = parser.parse_args()
-    midi_writer(etude_number=args.etude_number,
-                in_path=args.in_path,
-                out_path=args.out_path,
-                out_file=args.out_file)
+    midi_writer(in_path=args.in_path,
+                out_path=args.out_path)
 
 main()

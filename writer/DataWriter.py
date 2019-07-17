@@ -25,7 +25,7 @@ def audio_writer(in_path, out_path='.', out_file='out.h5'):
       out_file (string): The name of the output .h5 file to be saved. Default is 'out.h5'.
     '''
     import torchaudio
-    mp3_dirs = [in_path + '/' + directory for directory in os.listdir(in_path)]
+    mp3_dirs = [in_path +  directory for directory in os.listdir(in_path)]
     mp3_files = []
     while mp3_dirs:
         curr_path = mp3_dirs.pop()
